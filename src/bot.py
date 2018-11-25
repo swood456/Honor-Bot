@@ -3,6 +3,7 @@ import random
 import asyncio
 import aiohttp
 import json
+import os
 from discord import Game
 from discord.ext.commands import Bot
 
@@ -15,10 +16,11 @@ from discord.ext.commands import Bot
 K_INITIAL_USER_HONOR = 100.0
 BOT_PREFIX = ("!")
 
-with open('auth.json') as auth_file:
+# with open(os.path.join(os.pardir, 'data', 'auth.json')) as auth_file:
+with open(os.path.join('data', 'auth.json')) as auth_file:
     TOKEN = json.load(auth_file)['token']
 
-with open('statuses.json') as status_file:
+with open(os.path.join('data', 'statuses.json')) as status_file:
     statuses = json.load(status_file)['statuses']
 
 client = Bot(command_prefix=BOT_PREFIX)
