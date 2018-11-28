@@ -31,19 +31,7 @@ client = Bot(command_prefix=BOT_PREFIX)
 # aliases are other things that work for command
 # pass_context I think gives info about message/server/etc.
 
-# name of command also is an alias I think??
-honorPool = {}
-
-
-# checks to see if server is in map and if not adds it
-# need to find some way to run this every time command is thrown, or just once when new server is added
-def check_server(server):
-    if hash(server) not in honorPool:
-        honorPool[hash(server)] = {}
-
-        for member in server.members:
-            if member != client.user:
-                honorPool[hash(server)][hash(member)] = K_INITIAL_USER_HONOR
+honor_pool = {}
 
 # example thing don't keep
 @client.command(name='8ball',
@@ -61,12 +49,47 @@ async def eight_ball(context):
     ]
     await client.say(random.choice(possible_responses) + ", " + context.message.author.mention)
 
-
+# Testing basic command, remove eventually
 @client.command()
 async def square(number):
     squared_value = int(number) * int(number)
     await client.say(str(number) + " squared is " + str(squared_value))
 
+@client.command(name='honor',
+                desciption='Gives the amount of honor for the given user. Name is case sensitive and accepts nickname or username',
+                brief='Gives honor of user',
+                aliases=['list_honor'],
+                pass_context=True)
+async def list_honor(context, name):
+    member = context.message.server.get_member_named(name)
+
+    if member:
+        await client.say(member.display_name + ' has ' + str(int(honor_pool[context.message.server.id][member.id])) + ' honor')
+    else:
+        await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
+
+
+# TODO: command for listing honor of all users
+
+# TODO: command for listing all open honor bets
+
+# TODO: command for listing all honor bets that I am a part of
+
+# TODO: command for creating an honor bet
+
+@client.check
+def check_global(context):
+    server = context.message.server
+    if server.id not in honor_pool:
+        honor_pool[server.id] = {}
+
+        for member in server.members:
+            if not member.bot:
+                honor_pool[server.id][member.id] = K_INITIAL_USER_HONOR
+    # Make sure the author is in the database
+    elif context.message.author.id not in honor_pool[server.id]:
+        honor_pool[server.id][context.message.author.id] = K_INITIAL_USER_HONOR
+    return True
 
 @client.event
 async def on_ready():
