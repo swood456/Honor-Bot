@@ -69,7 +69,27 @@ async def list_honor(context, name):
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
 
-# TODO: command for listing honor of all users
+@client.command(name='allHonor',
+                description='Lists the honor of all users on the server. If there are more than 20 users, it will only list 20',
+                brief='List the honor of all users',
+                aliases=['all_honor', 'honor_all', 'honorAll'],
+                pass_context=True)
+async def all_honor(context):
+    server = context.message.server
+
+    count = 0
+    message = '```\n'
+
+    for mem in server.members:
+        if mem.id in honor_pool[server.id]:
+            message += mem.display_name + ': ' + str(int(honor_pool[server.id][mem.id])) + '\n'
+            count += 1
+            if count >= 20:
+                break
+
+    message += '```'
+
+    await client.say(message)
 
 # TODO: command for listing all open honor bets
 
