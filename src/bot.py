@@ -78,17 +78,13 @@ async def list_honor(context, name):
 async def all_honor(context):
     server = context.message.server
 
-    count = 0
     message = '```\n'
 
-    for member in server.members:
+    for member in list(server.members)[:20]:
         if member.bot: continue
         check_user(member)
         member_honor = user_collection.find_one({ '_id': member.id })['honor']
         message += member.display_name + ': ' + str(member_honor) + '\n'
-        count += 1
-        if count >= 20:
-            break
 
     message += '```'
 
