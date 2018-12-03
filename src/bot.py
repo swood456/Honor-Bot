@@ -13,7 +13,8 @@ from discord.ext.commands import Bot
     https://discordpy.readthedocs.io/en/rewrite/ext/commands/index.html
     https://discordpy.readthedocs.io/en/latest/api.html
 '''
-K_INITIAL_USER_HONOR = 100.0
+K_INITIAL_USER_HONOR = 100
+K_DEFAULT_BET_VALUE = 15
 BOT_PREFIX = ("!")
 
 # Load auth token
@@ -32,28 +33,25 @@ mongoClient = pymongo.MongoClient("mongodb://localhost:27017/")
 honorBot_db = mongoClient.honorBot
 
 user_collection = honorBot_db.users
+bet_collection = honorBot_db.bets
+# TODO: something that keeps track of info about what commands are used/when used wrong, etc.
 
 class HonorBet:
-    def __init__(self, value = 10, player1 = None, player2 = None):
-        self.value = value
+    def __init__(self, player1, amount, message, id=None, player2=None):
         self.player1 = player1
+        self.amount = amount
+        self.message = message
         self.player2 = player2
+        if id is not None:
+            self._id = id
 
-# example thing don't keep
-@client.command(name='8ball',
-                description="Answers a yes/no question.",
-                brief="Answers from the beyond.",
-                aliases=['eight_ball', 'eightball', '8-ball'],
-                pass_context=True)
-async def eight_ball(context):
-    possible_responses = [
-        'That is a resounding no',
-        'It is not looking likely',
-        'Too hard to tell',
-        'It is quite possible',
-        'Definitely',
-    ]
-    await client.say(random.choice(possible_responses) + ", " + context.message.author.mention)
+    @classmethod
+    def create_from_json(cls, bet_dict):
+        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['id'], bet_dict['player2'])
+
+@client.command()
+async def source():
+    await client.say('Honor bot is open source! Source code can be found at https://github.com/swood456/Honor-Bot')
 
 @client.command(name='honor',
                 desciption='Gives the amount of honor for the given user. Name is case sensitive and accepts nickname or username',
@@ -65,8 +63,8 @@ async def list_honor(context, name):
 
     if member:
         check_user(member)
-        member_honor = user_collection.find_one({ '_id': member.id })
-        await client.say(member.display_name + ' has ' + str(member_honor['honor']) + ' honor')
+        member_honor = user_collection.find_one({ '_id': member.id })['honor']
+        await client.say(member.display_name + ' has ' + str(member_honor) + ' honor')
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
@@ -94,19 +92,33 @@ async def all_honor(context):
 
 # TODO: command for listing all honor bets that I am a part of
 
+# TODO: command for getting info about a specific bet
+
+# TODO: command to accept an open bet
+
+# TODO: command to mark a bet as complete
+
 # TODO: command for creating an honor bet
 @client.command(name='makeBet',
-                description='Creates a new honor bet for another user to accept. You may specify a value for the bet',
+                description='Creates a new honor bet for another user to accept.\nUsage: !makeBet [amount] [message]',
                 brief='Create a new honor bet for another user to accept',
-                alias=['createBet', 'make_bet', 'create_bet', 'newBet', 'new_bet'],
+                alias=['createBet', 'make_bet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
-async def make_bet(context):
-    await client.say('this still needs to be implemented OOPS')
+async def make_bet(context, amount, *args):
+    print(amount)
+    message = ' '.join(args)
+    bet = HonorBet(context.message.author.id, amount, message)
+    print(bet.__dict__)
+    bet_collection.insert_one(bet.__dict__)
+    # TODO: give user more info about bet & figure out how they interface with it
+    await client.say('New bet created!')
 
+# check function is run every time a command is given to the bot
 @client.check
 def check_global(context):
     return check_user(context.message.author)
 
+# check to see if the member is 
 def check_user(member):
     result = user_collection.count_documents({ '_id': member.id })
     if result <= 0:
