@@ -98,20 +98,31 @@ async def all_honor(context):
 
 # TODO: command to mark a bet as complete
 
-# TODO: command for creating an honor bet
+# TODO: command to user/transfer some honor to give another user nickname for peroid of time
+
 @client.command(name='makeBet',
                 description='Creates a new honor bet for another user to accept.\nUsage: !makeBet [amount] [message]',
                 brief='Create a new honor bet for another user to accept',
                 alias=['createBet', 'make_bet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
 async def make_bet(context, amount, *args):
-    print(amount)
     message = ' '.join(args)
+    amount = float(amount)
+
+    if not check_user_has_honor(context.message.author.id, amount):
+        await client.say('You do not have enough honor to make a bet for that much!')
+        return
+
     bet = HonorBet(context.message.author.id, amount, message)
     print(bet.__dict__)
-    bet_collection.insert_one(bet.__dict__)
-    # TODO: give user more info about bet & figure out how they interface with it
-    await client.say('New bet created!')
+    inserted_bet = bet_collection.insert_one(bet.__dict__)
+
+    # TODO: come up with a better way to create bet ID so that it's user friendly
+    await client.say('Bet ID ' + str(inserted_bet.inserted_id) + ' created!')
+
+'''
+    Utility functions
+'''
 
 # check function is run every time a command is given to the bot
 @client.check
@@ -125,11 +136,16 @@ def check_user(member):
         add_new_user(member)
     return True
 
+# Adds new user into database
 def add_new_user(member):
     user_collection.insert_one({
         "_id": member.id,
         "honor": K_INITIAL_USER_HONOR
     })
+
+def check_user_has_honor(userId, honor_amount):
+    result = user_collection.find_one({ '_id': userId })
+    return result['honor'] >= honor_amount
 
 @client.event
 async def on_ready():
