@@ -37,17 +37,18 @@ bet_collection = honorBot_db.bets
 # TODO: something that keeps track of info about what commands are used/when used wrong, etc.
 
 class HonorBet:
-    def __init__(self, player1, amount, message, id=None, player2=None):
+    def __init__(self, player1, amount, message, display_id, id=None, player2=None):
         self.player1 = player1
         self.amount = amount
         self.message = message
+        self.display_id = display_id
         self.player2 = player2
         if id is not None:
             self._id = id
 
     @classmethod
     def create_from_json(cls, bet_dict):
-        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['id'], bet_dict['player2'])
+        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['id'], bet_dict['player2'])
 
 @client.command()
 async def source():
@@ -107,18 +108,28 @@ async def all_honor(context):
                 pass_context='true')
 async def make_bet(context, amount, *args):
     message = ' '.join(args)
-    amount = float(amount)
+
+    try:
+        amount = float(amount)
+    except ValueError:
+        await client.say('Error parsing bet amount. Make sure that you put a number!')
+        return
 
     if not check_user_has_honor(context.message.author.id, amount):
         await client.say('You do not have enough honor to make a bet for that much!')
         return
 
-    bet = HonorBet(context.message.author.id, amount, message)
-    print(bet.__dict__)
-    inserted_bet = bet_collection.insert_one(bet.__dict__)
+    # There is probably a better way to determine an ID to show to users, but hikjacking id field is bad UX
+    max_display_id_document = bet_collection.find_one(sort=[("display_id", pymongo.DESCENDING)])
 
-    # TODO: come up with a better way to create bet ID so that it's user friendly
-    await client.say('Bet ID ' + str(inserted_bet.inserted_id) + ' created!')
+    max_display_id = 0
+    if max_display_id_document is not None:
+        max_display_id = max_display_id_document.get('display_id', 0)
+    
+    bet = HonorBet(context.message.author.id, amount, message, max_display_id + 1)
+    bet_collection.insert_one(bet.__dict__)
+
+    await client.say('Bet ID ' + str(bet.display_id) + ' created!')
 
 '''
     Utility functions
