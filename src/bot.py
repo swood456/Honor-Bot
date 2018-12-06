@@ -6,6 +6,7 @@ import os
 import pymongo
 from discord import Game
 from discord.ext.commands import Bot
+from honorbot import *
 
 '''main documentation for API that I am using is at:
     https://discordpy.readthedocs.io/en/rewrite/ext/commands/api.html
@@ -33,33 +34,19 @@ mongoClient = pymongo.MongoClient("mongodb://localhost:27017/")
 honorBot_db = mongoClient.honorBot
 
 user_collection = honorBot_db.users
-bet_collection = honorBot_db.bets
+bet_collection = BetCollection(honorBot_db)
 # TODO: something that keeps track of info about what commands are used/when used wrong, etc.
-
-class HonorBet:
-    def __init__(self, player1, amount, message, display_id, id=None, player2=None):
-        self.player1 = player1
-        self.amount = amount
-        self.message = message
-        self.display_id = display_id
-        self.player2 = player2
-        if id is not None:
-            self._id = id
-
-    @classmethod
-    def create_from_json(cls, bet_dict):
-        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['id'], bet_dict['player2'])
 
 @client.command()
 async def source():
     await client.say('Honor bot is open source! Source code can be found at https://github.com/swood456/Honor-Bot')
 
-@client.command(name='honor',
+@client.command(name='user_honor',
                 desciption='Gives the amount of honor for the given user. Name is case sensitive and accepts nickname or username',
                 brief='Gives honor of user',
-                aliases=['list_honor'],
+                aliases=['user'],
                 pass_context=True)
-async def list_honor(context, name):
+async def user_honor(context, name):
     member = context.message.server.get_member_named(name)
 
     if member:
@@ -69,10 +56,10 @@ async def list_honor(context, name):
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
-@client.command(name='allHonor',
+@client.command(name='all_honor',
                 description='Lists the honor of all users on the server. If there are more than 20 users, it will only list 20',
                 brief='List the honor of all users',
-                aliases=['all_honor', 'honor_all', 'honorAll'],
+                aliases=['allHonor', 'honor_all', 'honorAll'],
                 pass_context=True)
 async def all_honor(context):
     server = context.message.server
@@ -90,6 +77,12 @@ async def all_honor(context):
     await client.say(message)
 
 # TODO: command for listing all open honor bets
+@client.command(name='openBets',
+                description='Lists all honor bets that have not yet been accepted',
+                brief='Lists all open bets',
+                aliases=['open_bets', 'openbets', 'open'])
+async def open_bets():
+    pass
 
 # TODO: command for listing all honor bets that I am a part of
 
@@ -101,10 +94,10 @@ async def all_honor(context):
 
 # TODO: command to user/transfer some honor to give another user nickname for peroid of time
 
-@client.command(name='makeBet',
-                description='Creates a new honor bet for another user to accept.\nUsage: !makeBet [amount] [message]',
+@client.command(name='make_bet',
+                description='Creates a new honor bet for another user to accept.\nUsage: !make_bet [amount] [message]',
                 brief='Create a new honor bet for another user to accept',
-                alias=['createBet', 'make_bet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
+                aliases=['createBet', 'makeBet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
 async def make_bet(context, amount, *args):
     message = ' '.join(args)
@@ -120,14 +113,10 @@ async def make_bet(context, amount, *args):
         return
 
     # There is probably a better way to determine an ID to show to users, but hikjacking id field is bad UX
-    max_display_id_document = bet_collection.find_one(sort=[("display_id", pymongo.DESCENDING)])
-
-    max_display_id = 0
-    if max_display_id_document is not None:
-        max_display_id = max_display_id_document.get('display_id', 0)
+    next_display_id = bet_collection.find_next_display_id()
     
-    bet = HonorBet(context.message.author.id, amount, message, max_display_id + 1)
-    bet_collection.insert_one(bet.__dict__)
+    bet = HonorBet(context.message.author.id, amount, message, next_display_id)
+    bet_collection.insert_bet(bet)
 
     await client.say('Bet ID ' + str(bet.display_id) + ' created!')
 
