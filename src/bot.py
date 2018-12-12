@@ -76,17 +76,54 @@ async def all_honor(context):
 
     await client.say(message)
 
-# TODO: command for listing all open honor bets
 @client.command(name='openBets',
                 description='Lists all honor bets that have not yet been accepted',
                 brief='Lists all open bets',
-                aliases=['open_bets', 'openbets', 'open'])
-async def open_bets():
-    pass
+                aliases=['open_bets', 'openbets', 'open'],
+                pass_context=True)
+async def open_bets(context):
+    bets = bet_collection.getAllOpenBets()
 
-# TODO: command for listing all honor bets that I am a part of
+    message = '```\n'
+    for bet in bets:
+        message += print_bet(bet, context.message.serve)
+    message += '```'
+
+    await client.say(message)
+
+@client.command(name='myBets',
+                description='Lists all open honor bets that you are a part of',
+                brief='Lists all of your bets',
+                aliases=['my_bets'],
+                pass_context=True)
+async def my_bets(context):
+    user_id = context.message.author.id
+    bets = bet_collection.getAllUsersBets(user_id)
+
+    message = '```\n'
+    for bet in bets:
+        message += print_bet(bet, context.message.server)
+    message += '```'
+
+    await client.say(message)
 
 # TODO: command for getting info about a specific bet
+@client.command(name='betInfo',
+                description='Gives info on a specific bet',
+                aliases=['bet_info', 'info'],
+                pass_context=True)
+async def bet_info(context, bet_display_id):
+    server = context.message.server
+
+    try:
+        display_id = int(bet_display_id)
+    except ValueError:
+        await client.say('Error parsing bet amount. Make sure that you put an integer!')
+        return
+    
+    bet = bet_collection.find_by_display_id(bet_display_id)
+
+    # TODO: finish this
 
 # TODO: command to accept an open bet
 
@@ -146,6 +183,9 @@ def add_new_user(member):
 def check_user_has_honor(userId, honor_amount):
     result = user_collection.find_one({ '_id': userId })
     return result['honor'] >= honor_amount
+
+def print_bet(bet, server):
+    return '!{}: {}\n\tcreated by: {}\n'.format(bet.display_id, bet.message, server.get_member(bet.player1))
 
 @client.event
 async def on_ready():

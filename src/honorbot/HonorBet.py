@@ -15,4 +15,4 @@ class HonorBet:
 
     @classmethod
     def create_from_json(cls, bet_dict):
-        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['id'], bet_dict['player2'], bet_dict['state'])
+        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['_id'], bet_dict['player2'], bet_dict['state'])

@@ -1,4 +1,5 @@
 import pymongo
+from .HonorBet import HonorBet
 
 class BetCollection:
     def __init__(self, database):
@@ -17,4 +18,14 @@ class BetCollection:
         self.collection.insert_one(bet.__dict__)
 
     def getAllOpenBets(self):
-        self.collection.find({ 'state': 'Open' })
+        docs = self.collection.find({'state': 'Open'})
+        result = []
+        for doc in docs:
+            result.append(HonorBet.create_from_json(doc))
+        return result
+    
+    def getAllUsersBets(self, user_id):
+        return self.collection.find({"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': 'Open'}]})
+
+    def find_by_display_id(self, display_id):
+        pass
