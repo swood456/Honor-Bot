@@ -136,17 +136,30 @@ async def accept(context, bet_display_id):
         return
     
     bet = bet_collection.find_by_display_id(display_id)
+    mention = context.message.author.mention
+    user_id = context.message.author.id
 
     # Various error checking to make sure bet is valid for this user to accept
-    if (bet.player1 == context.message.author.id):
-        await client.say('You cannot accept a bet that you created')
+    if (bet.player1 == user_id):
+        await client.say('{} You cannot accept Bet {} because you created it'.format(mention, display_id))
         return
 
     if bet.player2 is not None:
-        await client.say('This bet has already been accepted, you cannot accept it')
+        await client.say('{} Bet {} has already been accepted, you cannot accept it'.format(mention, display_id))
         return
 
+    if not check_user_has_honor(user_id, bet.amount):
+        await client.say('{} You do not have enough honor to accept Bet {}'.format(mention, bet.display_id))
+        return
+    
+    bet.player2 = user_id
+    bet.state = 'Active'
+    bet_collection.update_bet(bet)
+    await client.say('{} Bet {} was accepted by {}'.format(context.message.server.get_member(bet.player1).mention, bet.display_id, mention))
+
 # TODO: command to mark a bet as complete
+
+# TODO: command to cancel bet made by author that has not been accepted yet 
 
 # TODO: command to user/transfer some honor to give another user nickname for peroid of time
 

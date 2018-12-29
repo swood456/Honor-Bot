@@ -34,3 +34,6 @@ class BetCollection:
 
     def find_by_display_id(self, display_id):
         return HonorBet.create_from_json(self.collection.find_one({'display_id': display_id}))
+
+    def update_bet(self, bet):
+        self.collection.update_one({'_id': bet._id}, {'$set': bet.__dict__}, upsert=False)
