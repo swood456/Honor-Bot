@@ -14,7 +14,6 @@ from honorbot import *
     https://discordpy.readthedocs.io/en/rewrite/ext/commands/index.html
     https://discordpy.readthedocs.io/en/latest/api.html
 '''
-K_INITIAL_USER_HONOR = 100
 K_DEFAULT_BET_VALUE = 15
 BOT_PREFIX = ("!")
 
@@ -33,7 +32,7 @@ mongoClient = pymongo.MongoClient("mongodb://localhost:27017/")
 
 honorBot_db = mongoClient.honorBot
 
-user_collection = honorBot_db.users
+user_collection = UserCollection(honorBot_db)
 bet_collection = BetCollection(honorBot_db)
 # TODO: something that keeps track of info about what commands are used/when used wrong, etc.
 
@@ -51,7 +50,7 @@ async def user_honor(context, name):
 
     if member:
         check_user(member)
-        member_honor = user_collection.find_one({ '_id': member.id })['honor']
+        member_honor = user_collection.find_user(member.id)['honor']
         await client.say(member.display_name + ' has ' + str(member_honor) + ' honor')
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
@@ -69,7 +68,7 @@ async def all_honor(context):
     for member in list(server.members)[:20]:
         if member.bot: continue
         check_user(member)
-        member_honor = user_collection.find_one({ '_id': member.id })['honor']
+        member_honor = user_collection.find_user(member.id)['honor']
         message += member.display_name + ': ' + str(member_honor) + '\n'
 
     message += '```'
@@ -115,7 +114,7 @@ async def bet_info(context, bet_display_id):
     try:
         display_id = int(bet_display_id)
     except ValueError:
-        await client.say('Error parsing bet amount. Make sure that you put an integer!')
+        await client.say('Error parsing display id. Make sure that you put an integer!')
         return
     
     bet = bet_collection.find_by_display_id(display_id)
@@ -125,6 +124,27 @@ async def bet_info(context, bet_display_id):
     await client.say(message)
 
 # TODO: command to accept an open bet
+@client.command(name='accept',
+                description='Gives info on a specific bet',
+                aliases=['acceptBet', 'Accept', 'acceptbet', 'accept_bet'],
+                pass_context=True)
+async def accept(context, bet_display_id):
+    try:
+        display_id = int(bet_display_id)
+    except ValueError:
+        await client.say('Error parsing display id. Make sure that you put an integer!')
+        return
+    
+    bet = bet_collection.find_by_display_id(display_id)
+
+    # Various error checking to make sure bet is valid for this user to accept
+    if (bet.player1 == context.message.author.id):
+        await client.say('You cannot accept a bet that you created')
+        return
+
+    if bet.player2 is not None:
+        await client.say('This bet has already been accepted, you cannot accept it')
+        return
 
 # TODO: command to mark a bet as complete
 
@@ -167,20 +187,16 @@ def check_global(context):
 
 # check to see if the member is 
 def check_user(member):
-    result = user_collection.count_documents({ '_id': member.id })
-    if result <= 0:
+    if not user_collection.user_exists(member.id):
         add_new_user(member)
     return True
 
 # Adds new user into database
 def add_new_user(member):
-    user_collection.insert_one({
-        "_id": member.id,
-        "honor": K_INITIAL_USER_HONOR
-    })
+    user_collection.add_user(member.id)
 
 def check_user_has_honor(userId, honor_amount):
-    result = user_collection.find_one({ '_id': userId })
+    result = user_collection.find_user(userId)
     return result['honor'] >= honor_amount
 
 def print_bet(bet, server):
