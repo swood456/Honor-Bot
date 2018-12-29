@@ -17,15 +17,20 @@ class BetCollection:
     def insert_bet(self, bet):
         self.collection.insert_one(bet.__dict__)
 
-    def getAllOpenBets(self):
+    def find_all_open_bets(self):
         docs = self.collection.find({'state': 'Open'})
         result = []
         for doc in docs:
             result.append(HonorBet.create_from_json(doc))
         return result
     
-    def getAllUsersBets(self, user_id):
-        return self.collection.find({"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': 'Open'}]})
+    def find_all_user_bets(self, user_id):
+        query = {"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': 'Open'}]}
+        docs = self.collection.find(query)
+        result = []
+        for doc in docs:
+            result.append(HonorBet.create_from_json(doc))
+        return result
 
     def find_by_display_id(self, display_id):
-        pass
+        return HonorBet.create_from_json(self.collection.find_one({'display_id': display_id}))

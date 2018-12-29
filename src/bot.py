@@ -82,11 +82,11 @@ async def all_honor(context):
                 aliases=['open_bets', 'openbets', 'open'],
                 pass_context=True)
 async def open_bets(context):
-    bets = bet_collection.getAllOpenBets()
+    bets = bet_collection.find_all_open_bets()
 
     message = '```\n'
     for bet in bets:
-        message += print_bet(bet, context.message.serve)
+        message += print_bet(bet, context.message.server)
     message += '```'
 
     await client.say(message)
@@ -98,7 +98,7 @@ async def open_bets(context):
                 pass_context=True)
 async def my_bets(context):
     user_id = context.message.author.id
-    bets = bet_collection.getAllUsersBets(user_id)
+    bets = bet_collection.find_all_user_bets(user_id)
 
     message = '```\n'
     for bet in bets:
@@ -107,23 +107,22 @@ async def my_bets(context):
 
     await client.say(message)
 
-# TODO: command for getting info about a specific bet
 @client.command(name='betInfo',
                 description='Gives info on a specific bet',
-                aliases=['bet_info', 'info'],
+                aliases=['betinfo', 'bet_info', 'info'],
                 pass_context=True)
 async def bet_info(context, bet_display_id):
-    server = context.message.server
-
     try:
         display_id = int(bet_display_id)
     except ValueError:
         await client.say('Error parsing bet amount. Make sure that you put an integer!')
         return
     
-    bet = bet_collection.find_by_display_id(bet_display_id)
+    bet = bet_collection.find_by_display_id(display_id)
 
-    # TODO: finish this
+    message = '```\n' + print_bet(bet, context.message.server) + '\n```'
+
+    await client.say(message)
 
 # TODO: command to accept an open bet
 
@@ -185,11 +184,10 @@ def check_user_has_honor(userId, honor_amount):
     return result['honor'] >= honor_amount
 
 def print_bet(bet, server):
-    return '!{}: {}\n\tcreated by: {}\n'.format(bet.display_id, bet.message, server.get_member(bet.player1))
+    return '{}: {}\n\tcreated by: {}\n'.format(bet.display_id, bet.message, server.get_member(bet.player1))
 
 @client.event
 async def on_ready():
-    # await client.change_presence(game=Game(name="Please replace"))
     print("Logged in as " + client.user.name)
 
 # randomly selects an item from the list of statuses and changes the current game to it. Updates every 10 minutes
