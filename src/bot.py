@@ -108,6 +108,7 @@ async def my_bets(context):
 
 @client.command(name='betInfo',
                 description='Gives info on a specific bet',
+                brief='gives info for a specific bet',
                 aliases=['betinfo', 'bet_info', 'info'],
                 pass_context=True)
 async def bet_info(context, bet_display_id):
@@ -127,7 +128,8 @@ async def bet_info(context, bet_display_id):
     await client.say(message)
 
 @client.command(name='accept',
-                description='Accept a created bet',
+                description='Accept a bet using the display id of the bet',
+                brief='Accept a bet',
                 aliases=['acceptBet', 'Accept', 'acceptbet', 'accept_bet'],
                 pass_context=True)
 async def accept(context, bet_display_id):
@@ -165,6 +167,7 @@ async def accept(context, bet_display_id):
 
 @client.command(name='claim',
                 description='Claim that you won the bet with the given display_id',
+                brief='Claim that you won a bet',
                 aliases=['Claim'],
                 pass_context=True)
 async def claim(context, bet_display_id):
