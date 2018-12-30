@@ -144,7 +144,7 @@ async def accept(context, bet_display_id):
         await client.say('{} You cannot accept Bet {} because you created it'.format(mention, display_id))
         return
 
-    if bet.player2 is not None:
+    if bet.player2 is not None or bet.state is not 'Open':
         await client.say('{} Bet {} has already been accepted, you cannot accept it'.format(mention, display_id))
         return
 
