@@ -1,7 +1,7 @@
 import datetime
 
 class HonorBet:
-    def __init__(self, player1, amount, message, display_id, id=None, player2=None, state="Open", date=datetime.datetime.now()):
+    def __init__(self, player1, amount, message, display_id, id=None, player2=None, state="Open", date=datetime.datetime.now(), claimed_user=None):
         self.player1 = player1
         self.amount = amount
         self.message = message
@@ -9,6 +9,7 @@ class HonorBet:
         self.player2 = player2
         self.state = state
         self.created_date = date
+        self.claimed_user = claimed_user
         if id is not None:
             self._id = id
     
@@ -18,4 +19,4 @@ class HonorBet:
 
     @classmethod
     def create_from_json(cls, bet_dict):
-        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['_id'], bet_dict['player2'], bet_dict['state'], bet_dict['created_date'])
+        return cls(bet_dict['player1'], bet_dict['amount'], bet_dict['message'], bet_dict['display_id'], bet_dict['_id'], bet_dict['player2'], bet_dict['state'], bet_dict['created_date'], bet_dict['claimed_user'])

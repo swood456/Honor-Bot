@@ -18,14 +18,14 @@ class BetCollection:
         self.collection.insert_one(bet.__dict__)
 
     def find_all_open_bets(self):
-        docs = self.collection.find({'state': 'Open'})
+        docs = self.collection.find({'state': HonorBet.open_state})
         result = []
         for doc in docs:
             result.append(HonorBet.create_from_json(doc))
         return result
     
     def find_all_user_bets(self, user_id):
-        query = {"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': 'Open'}]}
+        query = {"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': HonorBet.open_state}]}
         docs = self.collection.find(query)
         result = []
         for doc in docs:
@@ -33,7 +33,9 @@ class BetCollection:
         return result
 
     def find_by_display_id(self, display_id):
-        return HonorBet.create_from_json(self.collection.find_one({'display_id': display_id}))
+        document = self.collection.find_one({'display_id': display_id})
+        if document is None: return None
+        return HonorBet.create_from_json(document)
 
     def update_bet(self, bet):
         self.collection.update_one({'_id': bet._id}, {'$set': bet.__dict__}, upsert=False)

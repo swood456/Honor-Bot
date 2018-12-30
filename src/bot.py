@@ -114,28 +114,34 @@ async def bet_info(context, bet_display_id):
     try:
         display_id = int(bet_display_id)
     except ValueError:
-        await client.say('Error parsing display id. Make sure that you put an integer!')
+        await client.say('Error parsing display id {}. Make sure that you put an integer!'.format(bet_display_id))
         return
     
     bet = bet_collection.find_by_display_id(display_id)
+    if bet is None:
+        await client.say('Could not find a bet with display id {}'.format(display_id))
+        return
 
     message = '```\n' + print_bet(bet, context.message.server) + '\n```'
 
     await client.say(message)
 
-# TODO: command to accept an open bet
 @client.command(name='accept',
-                description='Gives info on a specific bet',
+                description='Accept a created bet',
                 aliases=['acceptBet', 'Accept', 'acceptbet', 'accept_bet'],
                 pass_context=True)
 async def accept(context, bet_display_id):
     try:
         display_id = int(bet_display_id)
     except ValueError:
-        await client.say('Error parsing display id. Make sure that you put an integer!')
+        await client.say('Error parsing display id {}. Make sure that you put an integer!'.format(bet_display_id))
         return
     
     bet = bet_collection.find_by_display_id(display_id)
+    if bet is None:
+        await client.say('Could not find a bet with display id {}'.format(display_id))
+        return
+
     mention = context.message.author.mention
     user_id = context.message.author.id
 
@@ -144,7 +150,7 @@ async def accept(context, bet_display_id):
         await client.say('{} You cannot accept Bet {} because you created it'.format(mention, display_id))
         return
 
-    if bet.player2 is not None or bet.state is not 'Open':
+    if bet.player2 is not None or bet.state != HonorBet.open_state:
         await client.say('{} Bet {} has already been accepted, you cannot accept it'.format(mention, display_id))
         return
 
@@ -153,15 +159,50 @@ async def accept(context, bet_display_id):
         return
     
     bet.player2 = user_id
-    bet.state = 'Active'
+    bet.state = HonorBet.active_state
     bet_collection.update_bet(bet)
     await client.say('{} Bet {} was accepted by {}'.format(context.message.server.get_member(bet.player1).mention, bet.display_id, mention))
 
-# TODO: command to mark a bet as complete
+@client.command(name='claim',
+                description='Claim that you won the bet with the given display_id',
+                aliases=['Claim'],
+                pass_context=True)
+async def claim(context, bet_display_id):
+    try:
+        display_id = int(bet_display_id)
+    except ValueError:
+        await client.say('Error parsing display id {}. Make sure that you put an integer!'.format(bet_display_id))
+        return
+    
+    bet = bet_collection.find_by_display_id(display_id)
+    if bet is None:
+        await client.say('Could not find a bet with display id {}'.format(display_id))
+        return
+    
+    user_id = context.message.author.id
+
+    if bet.state != HonorBet.active_state:
+        await client.say('Bet {} is not marked as active, thus cannot be claimed'.format(display_id))
+        return
+
+    if bet.player1 != user_id and bet.player2 != user_id:
+        await client.say('You are not participating in Bet {} so you cannot claim it'.format(display_id))
+        return
+    
+    bet.claimed_user = user_id
+    bet_collection.update_bet(bet)
+
+    await client.say('Bet {} has been marked as completed. {} use commands !approve or !reject to accept or reject that the bet is completed in favor of {}'.format(display_id, context.message.server.get_member(bet.player1).mention, context.message.author.mention))
+
+# TODO: command to accept a person's claim that the bet is complete
+
+# TODO: command to reject a person's claim that the bet is complete
 
 # TODO: command to cancel bet made by author that has not been accepted yet 
 
-# TODO: command to user/transfer some honor to give another user nickname for peroid of time
+# TODO: V2: command to user/transfer some honor to give another user nickname for peroid of time
+
+# TODO: V2: command to somehow resolve disagreement where it is unclear bet is complete or not
 
 @client.command(name='make_bet',
                 description='Creates a new honor bet for another user to accept.\nUsage: !make_bet [amount] [message]',
