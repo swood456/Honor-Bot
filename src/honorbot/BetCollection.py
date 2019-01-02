@@ -25,7 +25,7 @@ class BetCollection:
         return result
     
     def find_all_user_bets(self, user_id):
-        query = {"$and":[{"$or":[ {"player1": user_id}, {"player2": user_id}]}, {'state': HonorBet.open_state}]}
+        query = {"$or":[ {"player1": user_id}, {"player2": user_id}]}
         docs = self.collection.find(query)
         result = []
         for doc in docs:

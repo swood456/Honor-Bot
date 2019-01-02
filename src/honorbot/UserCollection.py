@@ -17,3 +17,6 @@ class UserCollection:
             "_id": user_id,
             "honor": K_INITIAL_USER_HONOR
         })
+    
+    def update_user(self, user):
+        self.collection.update_one({'_id': user['_id']}, {'$set': user}, upsert=False)

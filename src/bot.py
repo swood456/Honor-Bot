@@ -129,7 +129,7 @@ async def bet_info(context, bet_display_id):
 
 @client.command(name='accept',
                 description='Accept a bet using the display id of the bet',
-                brief='Accept a bet',
+                brief='Accept an open bet',
                 aliases=['acceptBet', 'Accept', 'acceptbet', 'accept_bet'],
                 pass_context=True)
 async def accept(context, bet_display_id):
@@ -148,14 +148,12 @@ async def accept(context, bet_display_id):
     user_id = context.message.author.id
 
     # Various error checking to make sure bet is valid for this user to accept
+    if bet.player2 is not None or bet.state != HonorBet.open_state:
+        await client.say('{} Bet {} is not open any more, you cannot accept it'.format(mention, display_id))
+        return
     if (bet.player1 == user_id):
         await client.say('{} You cannot accept Bet {} because you created it'.format(mention, display_id))
         return
-
-    if bet.player2 is not None or bet.state != HonorBet.open_state:
-        await client.say('{} Bet {} has already been accepted, you cannot accept it'.format(mention, display_id))
-        return
-
     if not check_user_has_honor(user_id, bet.amount):
         await client.say('{} You do not have enough honor to accept Bet {}'.format(mention, bet.display_id))
         return
@@ -193,11 +191,56 @@ async def claim(context, bet_display_id):
         return
     
     bet.claimed_user = user_id
+    bet.state = HonorBet.claimed_state
     bet_collection.update_bet(bet)
 
     await client.say('Bet {} has been marked as completed. {} use commands !approve or !reject to accept or reject that the bet is completed in favor of {}'.format(display_id, context.message.server.get_member(bet.player1).mention, context.message.author.mention))
 
-# TODO: command to accept a person's claim that the bet is complete
+@client.command(name='approve',
+                description='Approve that you lost the bet, giving the honor to the person who claimed the bet',
+                brief='Approve that you lost a bet',
+                aliases=['Approve'],
+                pass_context=True)
+async def approve(context, bet_display_id):
+    # TODO: convert display id check and bet lookup into function(s) for galaxy brain's sake
+    try:
+        display_id = int(bet_display_id)
+    except ValueError:
+        await client.say('Error parsing display id {}. Make sure that you put an integer!'.format(bet_display_id))
+        return
+    
+    bet = bet_collection.find_by_display_id(display_id)
+    if bet is None:
+        await client.say('Could not find a bet with display id {}'.format(display_id))
+        return
+    
+    user_id = context.message.author.id
+
+    if bet.state != HonorBet.claimed_state:
+        await client.say('Bet {} is not in the claimed state, so you can not approve it'.format(display_id))
+        return
+    if bet.player1 != user_id and bet.player2 != user_id:
+        await client.say('You are not a participant in Bet {}, so you can not approve it'.format(display_id))
+        return
+    if bet.claimed_user == user_id:
+        await client.say('You cannot approve your own bet, the loser of the bet must approve it')
+        return
+
+    bet.state = HonorBet.closed_state
+    bet_collection.update_bet(bet)
+
+    winning_user = user_collection.find_user(bet.claimed_user)
+    winning_user['honor'] += bet.amount
+    winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
+    user_collection.update_user(winning_user)
+
+    losing_user = user_collection.find_user(user_id)
+    losing_user['honor'] -= bet.amount
+    losing_user['won_bets'] = winning_user.get('won_bets', 0) + 1
+    user_collection.update_user(losing_user)
+
+    await client.say('Bet {} completed'.format(display_id))
+    return
 
 # TODO: command to reject a person's claim that the bet is complete
 
@@ -257,6 +300,7 @@ def check_user_has_honor(userId, honor_amount):
     return result['honor'] >= honor_amount
 
 def print_bet(bet, server):
+    # TODO: there is a lot more info that needs to be shown for this
     return '{}: {}\n\tcreated by: {}\n'.format(bet.display_id, bet.message, server.get_member(bet.player1))
 
 @client.event
