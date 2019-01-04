@@ -14,7 +14,6 @@ from honorbot import *
     https://discordpy.readthedocs.io/en/rewrite/ext/commands/index.html
     https://discordpy.readthedocs.io/en/latest/api.html
 '''
-K_DEFAULT_BET_VALUE = 15
 BOT_PREFIX = ("!")
 
 # Load auth token
@@ -46,6 +45,7 @@ async def source():
                 aliases=['user'],
                 pass_context=True)
 async def user_honor(context, name):
+    # TODO: figure out how to make with work with @username#0123 format
     member = context.message.server.get_member_named(name)
 
     if member:
@@ -55,25 +55,26 @@ async def user_honor(context, name):
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
-@client.command(name='all_honor',
-                description='Lists the honor of all users on the server. If there are more than 20 users, it will only list 20',
-                brief='List the honor of all users',
-                aliases=['allHonor', 'honor_all', 'honorAll'],
-                pass_context=True)
-async def all_honor(context):
-    server = context.message.server
+# TODO: determine if this command is at all useful, and if not kill it off
+# @client.command(name='all_honor',
+#                 description='Lists the honor of all users on the server. If there are more than 20 users, it will only list 20',
+#                 brief='List the honor of all users',
+#                 aliases=['allHonor', 'honor_all', 'honorAll'],
+#                 pass_context=True)
+# async def all_honor(context):
+#     server = context.message.server
 
-    message = '```\n'
+#     message = '```\n'
 
-    for member in list(server.members)[:20]:
-        if member.bot: continue
-        check_user(member)
-        member_honor = user_collection.find_user(member.id)['honor']
-        message += member.display_name + ': ' + str(member_honor) + '\n'
+#     for member in list(server.members)[:20]:
+#         if member.bot: continue
+#         check_user(member)
+#         member_honor = user_collection.find_user(member.id)['honor']
+#         message += member.display_name + ': ' + str(member_honor) + '\n'
 
-    message += '```'
+#     message += '```'
 
-    await client.say(message)
+#     await client.say(message)
 
 @client.command(name='openBets',
                 description='Lists all honor bets that have not yet been accepted',
@@ -150,33 +151,28 @@ async def accept(context, bet_display_id):
                 brief='Claim that you won a bet',
                 aliases=['Claim'],
                 pass_context=True)
-async def claim(context, bet_display_id, losers_nickname):
-    try:
-        display_id = int(bet_display_id)
-    except ValueError:
-        await client.say('Error parsing display id {}. Make sure that you put an integer!'.format(bet_display_id))
+async def claim(context, bet_display_id, *losers_nickname):
+    bet = check_display_id(bet_display_id)
+    if not bet:
         return
     
-    bet = bet_collection.find_by_display_id(display_id)
-    if bet is None:
-        await client.say('Could not find a bet with display id {}'.format(display_id))
-        return
-    
+    nickname = ' '.join(losers_nickname)
     user_id = context.message.author.id
 
     if bet.state != HonorBet.active_state:
-        await client.say('Bet {} is not marked as active, thus cannot be claimed'.format(display_id))
+        await client.say('Bet {} is not marked as active, thus cannot be claimed'.format(bet.display_id))
         return
 
     if bet.player1 != user_id and bet.player2 != user_id:
-        await client.say('You are not participating in Bet {} so you cannot claim it'.format(display_id))
+        await client.say('You are not participating in Bet {} so you cannot claim it'.format(bet.display_id))
         return
     
     bet.claimed_user = user_id
     bet.state = HonorBet.claimed_state
+    bet.punishment_nickname = nickname
     bet_collection.update_bet(bet)
 
-    await client.say('Bet {} has been marked as completed. {} use commands !approve or !reject to accept or reject that the bet is completed in favor of {}'.format(display_id, context.message.server.get_member(bet.player1).mention, context.message.author.mention))
+    await client.say('Bet {} has been marked as completed. {} use commands !approve or !reject to accept or reject that the bet is completed in favor of {}'.format(bet.display_id, context.message.server.get_member(bet.player1).mention, context.message.author.mention))
 
 @client.command(name='approve',
                 description='Approve that you lost the bet, giving the honor to the person who claimed the bet',
@@ -204,13 +200,16 @@ async def approve(context, bet_display_id):
     bet_collection.update_bet(bet)
 
     # TODO: redo all of this with duration instead of numbered honor
-    # winning_user = user_collection.find_user(bet.claimed_user)
-    # winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
-    # user_collection.update_user(winning_user)
+    winning_user = user_collection.find_user(bet.claimed_user)
+    winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
+    user_collection.update_user(winning_user)
 
-    # losing_user = user_collection.find_user(user_id)
-    # losing_user['won_bets'] = winning_user.get('won_bets', 0) + 1
-    # user_collection.update_user(losing_user)
+    losing_user = user_collection.find_user(user_id)
+    losing_user['lost_bets'] = winning_user.get('lost_bets', 0) + 1
+    punishments = losing_user.get('punishment_nicknames', [])
+    punishments.append({'duration' : bet.duration, 'punishment_nickname': bet.punishment_nickname})
+    losing_user['punishment_nicknames'] = punishments
+    user_collection.update_user(losing_user)
 
     await client.say('Bet {} completed'.format(bet.display_id))
     return
@@ -228,8 +227,8 @@ async def approve(context, bet_display_id):
                 brief='Create a new honor bet for another user to accept',
                 aliases=['createBet', 'makeBet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
-async def make_bet(context, nickname_duration, *args):
-    message = ' '.join(args)
+async def make_bet(context, nickname_duration, *bet):
+    message = ' '.join(bet)
 
     try:
         duration = int(nickname_duration)

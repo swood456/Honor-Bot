@@ -1,7 +1,5 @@
 import pymongo
 
-K_INITIAL_USER_HONOR = 100
-
 class UserCollection:
     def __init__(self, database):
         self.collection = database.users
@@ -15,7 +13,6 @@ class UserCollection:
     def add_user(self, user_id):
         self.collection.insert_one({
             "_id": user_id,
-            "honor": K_INITIAL_USER_HONOR
         })
     
     def update_user(self, user):
