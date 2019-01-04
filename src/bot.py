@@ -6,6 +6,7 @@ import os
 import pymongo
 from discord import Game
 from discord.ext.commands import Bot
+from datetime import datetime, timedelta
 from honorbot import *
 
 '''main documentation for API that I am using is at:
@@ -205,9 +206,9 @@ async def approve(context, bet_display_id):
     user_collection.update_user(winning_user)
 
     losing_user = user_collection.find_user(user_id)
-    losing_user['lost_bets'] = winning_user.get('lost_bets', 0) + 1
+    losing_user['lost_bets'] = losing_user.get('lost_bets', 0) + 1
     punishments = losing_user.get('punishment_nicknames', [])
-    punishments.append({'duration' : bet.duration, 'punishment_nickname': bet.punishment_nickname})
+    punishments.append({'ending' : datetime.now() + timedelta(days=bet.duration), 'punishment_nickname': bet.punishment_nickname})
     losing_user['punishment_nicknames'] = punishments
     user_collection.update_user(losing_user)
 
