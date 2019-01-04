@@ -200,7 +200,6 @@ async def approve(context, bet_display_id):
     bet.state = HonorBet.closed_state
     bet_collection.update_bet(bet)
 
-    # TODO: redo all of this with duration instead of numbered honor
     winning_user = user_collection.find_user(bet.claimed_user)
     winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
     user_collection.update_user(winning_user)
@@ -215,7 +214,31 @@ async def approve(context, bet_display_id):
     await client.say('Bet {} completed'.format(bet.display_id))
     return
 
-# TODO: command to reject a person's claim that the bet is complete
+@client.command(name='reject',
+                description='Reject that the bet is lost, putting it back as avilable to be claimed by either party',
+                brief='Reject that you lost a bet',
+                aliases=['Reject'],
+                pass_context=True)
+async def reject(context, bet_display_id):
+    bet = check_display_id(bet_display_id)
+    if not bet:
+        return
+    
+    user_id = context.message.author.id
+
+    if bet.state != HonorBet.claimed_state:
+        await client.say('Bet {} is not in the claimed state, so you can not reject it'.format(bet.display_id))
+        return
+    if bet.player1 != user_id and bet.player2 != user_id:
+        await client.say('You are not a participant in Bet {}, so you can not reject it'.format(bet.display_id))
+        return
+    
+    bet.state = HonorBet.active_state
+    bet.claimed_user = None
+    bet.punishment_nickname = None
+    bet_collection.update_bet(bet)
+
+    await client.say('Bet {} has been rejected, and can now be claimed by either party'.format(bet.display_id))
 
 # TODO: command to cancel bet made by author that has not been accepted yet 
 
