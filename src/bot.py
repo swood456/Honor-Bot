@@ -41,8 +41,8 @@ async def source():
     await client.say('Honor bot is open source! Source code can be found at https://github.com/swood456/Honor-Bot')
 
 @client.command(name='user_honor',
-                desciption='Gives the amount of honor for the given user. Name is case sensitive and accepts nickname or username',
-                brief='Gives honor of user',
+                desciption='Gives the duration of the user\'s current nickname and any future debts that they owe',
+                brief='Gives info about user',
                 aliases=['user'],
                 pass_context=True)
 async def user_honor(context, name):
@@ -139,9 +139,6 @@ async def accept(context, bet_display_id):
     if (bet.player1 == user_id):
         await client.say('{} You cannot accept Bet {} because you created it'.format(mention, bet.display_id))
         return
-    if not check_user_has_honor(user_id, bet.amount):
-        await client.say('{} You do not have enough honor to accept Bet {}'.format(mention, bet.display_id))
-        return
     
     bet.player2 = user_id
     bet.state = HonorBet.active_state
@@ -153,7 +150,7 @@ async def accept(context, bet_display_id):
                 brief='Claim that you won a bet',
                 aliases=['Claim'],
                 pass_context=True)
-async def claim(context, bet_display_id):
+async def claim(context, bet_display_id, losers_nickname):
     try:
         display_id = int(bet_display_id)
     except ValueError:
@@ -206,15 +203,14 @@ async def approve(context, bet_display_id):
     bet.state = HonorBet.closed_state
     bet_collection.update_bet(bet)
 
-    winning_user = user_collection.find_user(bet.claimed_user)
-    winning_user['honor'] += bet.amount
-    winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
-    user_collection.update_user(winning_user)
+    # TODO: redo all of this with duration instead of numbered honor
+    # winning_user = user_collection.find_user(bet.claimed_user)
+    # winning_user['won_bets'] = winning_user.get('won_bets', 0) + 1
+    # user_collection.update_user(winning_user)
 
-    losing_user = user_collection.find_user(user_id)
-    losing_user['honor'] -= bet.amount
-    losing_user['won_bets'] = winning_user.get('won_bets', 0) + 1
-    user_collection.update_user(losing_user)
+    # losing_user = user_collection.find_user(user_id)
+    # losing_user['won_bets'] = winning_user.get('won_bets', 0) + 1
+    # user_collection.update_user(losing_user)
 
     await client.say('Bet {} completed'.format(bet.display_id))
     return
@@ -228,27 +224,23 @@ async def approve(context, bet_display_id):
 # TODO: V2: command to somehow resolve disagreement where it is unclear bet is complete or not
 
 @client.command(name='make_bet',
-                description='Creates a new honor bet for another user to accept.\nUsage: !make_bet [amount] [message]',
+                description='Creates a new honor bet for another user to accept',
                 brief='Create a new honor bet for another user to accept',
                 aliases=['createBet', 'makeBet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
-async def make_bet(context, amount, *args):
+async def make_bet(context, nickname_duration, *args):
     message = ' '.join(args)
 
     try:
-        amount = float(amount)
+        duration = int(nickname_duration)
     except ValueError:
-        await client.say('Error parsing bet amount. Make sure that you put a number!')
-        return
-
-    if not check_user_has_honor(context.message.author.id, amount):
-        await client.say('You do not have enough honor to make a bet for that much!')
+        await client.say('Error parsing loss duration. Make sure that you put a number!')
         return
 
     # There is probably a better way to determine an ID to show to users, but hikjacking id field is bad UX
     next_display_id = bet_collection.find_next_display_id()
     
-    bet = HonorBet(context.message.author.id, amount, message, next_display_id)
+    bet = HonorBet(context.message.author.id, duration, message, next_display_id)
     bet_collection.insert_bet(bet)
 
     await client.say('Bet ID ' + str(bet.display_id) + ' created!')
@@ -271,10 +263,6 @@ def check_user(member):
 # Adds new user into database
 def add_new_user(member):
     user_collection.add_user(member.id)
-
-def check_user_has_honor(userId, honor_amount):
-    result = user_collection.find_user(userId)
-    return result['honor'] >= honor_amount
 
 def print_bet(bet, server):
     # TODO: there is a lot more info that needs to be shown for this
