@@ -56,26 +56,6 @@ async def user_honor(context, name):
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
-# TODO: determine if this command is at all useful, and if not kill it off
-# @client.command(name='all_honor',
-#                 description='Lists the honor of all users on the server. If there are more than 20 users, it will only list 20',
-#                 brief='List the honor of all users',
-#                 aliases=['allHonor', 'honor_all', 'honorAll'],
-#                 pass_context=True)
-# async def all_honor(context):
-#     server = context.message.server
-
-#     message = '```\n'
-
-#     for member in list(server.members)[:20]:
-#         if member.bot: continue
-#         check_user(member)
-#         member_honor = user_collection.find_user(member.id)['honor']
-#         message += member.display_name + ': ' + str(member_honor) + '\n'
-
-#     message += '```'
-
-#     await client.say(message)
 
 @client.command(name='openBets',
                 description='Lists all honor bets that have not yet been accepted',
@@ -308,8 +288,14 @@ def add_new_user(member):
     user_collection.add_user(member.id)
 
 def print_bet(bet, server):
-    # TODO: there is a lot more info that needs to be shown for this
-    return '{}: {}\n\tcreated by: {}\n'.format(bet.display_id, bet.message, server.get_member(bet.player1))
+    message = 'Bet {}: {}\n\tCreated by: {}\n\tDuration: {} day(s)\n'.format(bet.display_id, bet.message, server.get_member(bet.player1), bet.duration)
+    if bet.player2:
+        message += '\tAccepted by: {}\n'.format(server.get_member(bet.player2))
+    if bet.claimed_user:
+        message += '\tClaimed by: {}\n'.format(server.get_member(bet.claimed_user))
+        message += '\t\tLoser\'s nickname: {}\n'.format(bet.punishment_nickname)
+    message += '\tState: {}\n'.format(bet.state)
+    return message
 
 def check_display_id(bet_display_id):
     try:

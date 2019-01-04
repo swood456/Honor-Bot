@@ -17,7 +17,7 @@ class HonorBet:
     open_state = "Open"
     active_state = "Active"
     claimed_state = "Claimed"
-    closed_state = "Closed"
+    closed_state = "Completed"
 
     @classmethod
     def create_from_json(cls, bet_dict):
