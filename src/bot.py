@@ -240,9 +240,29 @@ async def reject(context, bet_display_id):
 
     await client.say('Bet {} has been rejected, and can now be claimed by either party'.format(bet.display_id))
 
-# TODO: command to cancel bet made by author that has not been accepted yet 
+@client.command(name='cancel',
+                description='Cancel a bet that you made before someone else has accepted it',
+                brief='Cancel a bet',
+                aliases=['Cancel'],
+                pass_context=True)
+async def cancel(context, bet_display_id):
+    bet = check_display_id(bet_display_id)
+    if not bet:
+        return
+    
+    user_id = context.message.author.id
 
-# TODO: V2: command to user/transfer some honor to give another user nickname for peroid of time
+    if bet.state != HonorBet.open_state:
+        await client.say('Bet {} is not in the open state, so you can not cancel it'.format(bet.display_id))
+        return
+    if bet.player1 != user_id:
+        await client.say('You did not create Bet {}, so you can not cancel it'.format(bet.display_id))
+        return
+    
+    bet.state = HonorBet.closed_state
+    bet_collection.update_bet(bet)
+
+    await client.say('Bet {} has been canceled'.format(bet.display_id))
 
 # TODO: V2: command to somehow resolve disagreement where it is unclear bet is complete or not
 
