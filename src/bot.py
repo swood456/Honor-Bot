@@ -43,16 +43,29 @@ async def source():
 @client.command(name='user_honor',
                 desciption='Gives the duration of the user\'s current nickname and any future debts that they owe',
                 brief='Gives info about user',
-                aliases=['user'],
+                aliases=['user', 'userHonor', 'UserHonor'],
                 pass_context=True)
 async def user_honor(context, name):
-    # TODO: figure out how to make with work with @username#0123 format
     member = context.message.server.get_member_named(name)
+
+    member = member or context.message.server.get_member(name.lstrip('<@!').rstrip('>'))
 
     if member:
         check_user(member)
-        member_honor = user_collection.find_user(member.id)['honor']
-        await client.say(member.display_name + ' has ' + str(member_honor) + ' honor')
+        member_doc = user_collection.find_user(member.id)
+        message = '```\n'
+        message += '{}\t\tWon Bets: {}\t\tLost Bets: {}\n'.format(member.display_name, member_doc.get('won_bets', 0), member_doc.get('lost_bets', ))
+        message += 'Current Punishment:\t'
+        if member_doc.get('current_punishment', None):
+            message += '{}\tends: {}\n'.format(member_doc['current_punishment']['name'], member_doc['current_punishment']['end_date'])
+        else:
+            message += 'None\n'
+        
+        for punishment in member_doc.get('punishments', []):
+            message += '\t' + punishment['punishment_nickname'] + '\t' + punishment['duration'] + '\n'
+        
+        message += '```'
+        await client.say(message)
     else:
         await client.say(name + ' not recognized as a user on this server. Make sure capitalization is correct and try again')
 
@@ -187,7 +200,7 @@ async def approve(context, bet_display_id):
     losing_user = user_collection.find_user(user_id)
     losing_user['lost_bets'] = losing_user.get('lost_bets', 0) + 1
     punishments = losing_user.get('punishment_nicknames', [])
-    punishments.append({'ending' : datetime.now() + timedelta(days=bet.duration), 'punishment_nickname': bet.punishment_nickname})
+    punishments.append({'duration': bet.duration, 'punishment_nickname': bet.punishment_nickname})
     losing_user['punishment_nicknames'] = punishments
     user_collection.update_user(losing_user)
 
