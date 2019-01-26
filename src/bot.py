@@ -370,6 +370,12 @@ async def update_status():
     await client.wait_until_ready()
     while not client.is_closed:
         await client.change_presence(game=Game(name=random.choice(statuses)))
+        users = user_collection.get_all_users()
+        for user in users:
+            if user.get('current_punishment') is not None:
+                if user['current_punishment']['end_date'] < datetime.now():
+                    user['current_punishment'] = None
+                    user_collection.update_user(user)
         await asyncio.sleep(600)
 
 

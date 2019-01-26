@@ -17,3 +17,6 @@ class UserCollection:
     
     def update_user(self, user):
         self.collection.update_one({'_id': user['_id']}, {'$set': user}, upsert=False)
+
+    def get_all_users(self):
+        return self.collection.find({})
