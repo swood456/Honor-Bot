@@ -57,12 +57,12 @@ async def user_honor(context, name):
         message += '{}\t\tWon Bets: {}\t\tLost Bets: {}\n'.format(member.display_name, member_doc.get('won_bets', 0), member_doc.get('lost_bets', ))
         message += 'Current Punishment:\t'
         if member_doc.get('current_punishment', None):
-            message += '{}\tends: {}\n'.format(member_doc['current_punishment']['name'], member_doc['current_punishment']['end_date'])
+            message += '{}\tends: {}\n'.format(member_doc['current_punishment']['name'], format_date(member_doc['current_punishment']['end_date']))
         else:
             message += 'None\n'
-        
-        for punishment in member_doc.get('punishments', []):
-            message += '\t' + punishment['punishment_nickname'] + '\t' + punishment['duration'] + '\n'
+        message += 'Punishment Queue:\n'
+        for punishment in member_doc.get('punishment_nicknames', []):
+            message += '\t{}\t{} day(s)\n'.format(punishment['punishment_nickname'], punishment['duration'])
         
         message += '```'
         await client.say(message)
@@ -281,6 +281,41 @@ async def make_bet(context, nickname_duration, *bet):
 
     await client.say('Bet ID ' + str(bet.display_id) + ' created!')
 
+@client.command(name='punishment',
+                description='Accept your punishment after setting your nickname to the required nickname',
+                brief='Accept your punishment',
+                aliases=['accept_punishment', 'acceptPunishment'],
+                pass_context='true')
+async def punishment(context):
+    user = context.message.author
+
+    user_doc = user_collection.find_user(user.id)
+
+    if user_doc.get('current_punishment') is not None:
+        # Make sure that the date didn't get mistakenly not erased
+        if user_doc['current_punishment']['end_date'] < datetime.now():
+            user_doc['current_punishment'] = None
+            user_collection.update_user(user_doc)
+        else:
+            await client.say('Your current punishment is not yet expired, wait until {} and get your next punishment'.format(format_date(user_doc['current_punishment']['end_date'])))
+            return
+
+    punishments = user_doc.get('punishment_nicknames', [])
+    if len(punishments) > 0:
+        if user.nick != punishments[0]['punishment_nickname']:
+            await client.say('Your nickname is not set up to match the punishment, set your nickname to \"{}\" and run the command again'.format(punishments[0]['punishment_nickname']))
+            return
+        user_doc['current_punishment'] = {}
+        user_doc['current_punishment']['end_date'] = datetime.now() + timedelta(days=punishments[0]['duration'])
+        user_doc['current_punishment']['name'] = punishments[0]['punishment_nickname']
+        punishments.pop(0)
+
+        user_collection.update_user(user_doc)
+
+        await client.say('Your punishment has been recorded. You will be free from this punishment on {}'.format(format_date(user_doc['current_punishment']['end_date'])))
+    else:
+        await client.say('You currently do not have any punishments, so you have no fate to accept')
+
 '''
     Utility functions
 '''
@@ -322,6 +357,9 @@ def check_display_id(bet_display_id):
         asyncio.ensure_future(client.say('Could not find a bet with display id {}'.format(display_id)))
         return False
     return bet
+
+def format_date(date):
+    return date.strftime('%b %d, %Y %I:%M %p EST')
 
 @client.event
 async def on_ready():
