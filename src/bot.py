@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import pymongo
-from discord import Game
+from discord import Game, ChannelType
 from discord.ext.commands import Bot
 from datetime import datetime, timedelta
 from honorbot import *
@@ -40,10 +40,10 @@ bet_collection = BetCollection(honorBot_db)
 async def source():
     await client.say('Honor bot is open source! Source code can be found at https://github.com/swood456/Honor-Bot')
 
-@client.command(name='user_honor',
+@client.command(name='userHonor',
                 desciption='Gives the duration of the user\'s current nickname and any future debts that they owe',
                 brief='Gives info about user',
-                aliases=['user', 'userHonor', 'UserHonor'],
+                aliases=['user', 'user_honor', 'UserHonor'],
                 pass_context=True)
 async def user_honor(context, name):
     member = context.message.server.get_member_named(name)
@@ -259,10 +259,10 @@ async def cancel(context, bet_display_id):
 
 # TODO: V2: command to somehow resolve disagreement where it is unclear bet is complete or not
 
-@client.command(name='make_bet',
+@client.command(name='makeBet',
                 description='Creates a new honor bet for another user to accept',
                 brief='Create a new honor bet for another user to accept',
-                aliases=['createBet', 'makeBet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
+                aliases=['createBet', 'make_bet', 'create_bet', 'newBet', 'new_bet', 'honorBet', 'honor_bet'],
                 pass_context='true')
 async def make_bet(context, nickname_duration, *bet):
     message = ' '.join(bet)
@@ -371,10 +371,17 @@ async def update_status():
     while not client.is_closed:
         await client.change_presence(game=Game(name=random.choice(statuses)))
         users = user_collection.get_all_users()
+        # TODO: clean this up and move it somewhere nicer
         for user in users:
             if user.get('current_punishment') is not None:
                 if user['current_punishment']['end_date'] < datetime.now():
                     user['current_punishment'] = None
+                    for server in client.servers:
+                        member = server.get_member(user['_id'])
+                        if member is not None:
+                            for channel in server.channels:
+                                if channel.name == 'honor-bets':
+                                    await client.say('{} your punishment is over, feel free to accept a new punishment or set your name to whatever you see fit'.format(member.mention))
                     user_collection.update_user(user)
         await asyncio.sleep(600)
 
